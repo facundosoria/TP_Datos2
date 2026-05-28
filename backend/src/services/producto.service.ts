@@ -75,8 +75,8 @@ export const getOfertasByProductoNombre = async (nombre: string) => {
       tienda: r.get("tienda"),
       pais: r.get("pais"),
       moneda: r.get("moneda"),
-      costoEnvio: r.get("costoEnvio"),
-      diasEnvio: r.get("diasEnvio"),
+      costoEnvio: Number(r.get("costoEnvio")),
+      diasEnvio: Number(r.get("diasEnvio")),
       courier: r.get("courier"),
     }));
   } finally {

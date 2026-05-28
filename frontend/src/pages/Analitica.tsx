@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { api } from "../services/api";
+import MiniGrafo from "../components/MiniGrafo";
 
 const formatARS = (n: number) =>
   new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 0 }).format(n);
@@ -30,6 +31,12 @@ type Cliente = {
   totalPaquetes: number; paquetesRetenidos: number;
   totalIncidencias: number; calCourierProm: number; tasaProblemasPct: number;
 };
+
+type GrafoNode = { id: string; label: string; name: string };
+type GrafoLink = { source: string; target: string; type: string };
+type GrafoData = { nodes: GrafoNode[]; links: GrafoLink[] };
+
+const EMPTY_GRAFO: GrafoData = { nodes: [], links: [] };
 
 // ── Query builders ─────────────────────────────────────────────────────────
 
@@ -164,6 +171,51 @@ RETURN
     THEN round(toFloat(paquetesRetenidos) / totalPaquetes * 100, 1)
     ELSE 0 END AS tasaProblemasPct`;
 
+const GRAFO_QUERIES = {
+  couriers:
+`MATCH (n)-[r]->(m)
+WHERE (n:Courier AND m:Paquete)
+   OR (n:Paquete AND m:Incidencia)
+RETURN labels(n)[0] AS fromLabel,
+       COALESCE(n.id, n.codigo) AS fromId,
+       COALESCE(n.nombre, n.codigo, n.id, "") AS fromName,
+       type(r) AS relType,
+       labels(m)[0] AS toLabel,
+       COALESCE(m.id, m.codigo) AS toId,
+       COALESCE(m.nombre, m.codigo, m.id, "") AS toName
+LIMIT 300`,
+  productos:
+`MATCH (n)-[r]->(m)
+WHERE (n:Producto AND m:OfertaProducto)
+   OR (n:OfertaProducto AND m:TiendaExterior)
+   OR (n:TiendaExterior AND m:PaisOrigen)
+   OR (n:Producto AND m:CategoriaProducto)
+RETURN labels(n)[0] AS fromLabel,
+       COALESCE(n.id, n.codigo) AS fromId,
+       COALESCE(n.nombre, n.codigo, n.id, "") AS fromName,
+       type(r) AS relType,
+       labels(m)[0] AS toLabel,
+       COALESCE(m.id, m.codigo) AS toId,
+       COALESCE(m.nombre, m.codigo, m.id, "") AS toName
+LIMIT 300`,
+  clientes:
+`MATCH (n)-[r]->(m)
+WHERE (n:Cliente AND m:Compra)
+   OR (n:Compra AND m:Orden)
+   OR (n:Compra AND m:Paquete)
+   OR (n:Orden AND m:Paquete)
+   OR (n:Paquete AND m:EstadoEnvio)
+   OR (n:Paquete AND m:Courier)
+RETURN labels(n)[0] AS fromLabel,
+       COALESCE(n.id, n.codigo) AS fromId,
+       COALESCE(n.nombre, n.codigo, n.id, "") AS fromName,
+       type(r) AS relType,
+       labels(m)[0] AS toLabel,
+       COALESCE(m.id, m.codigo) AS toId,
+       COALESCE(m.nombre, m.codigo, m.id, "") AS toName
+LIMIT 300`,
+};
+
 // ── CypherBlock ────────────────────────────────────────────────────────────
 
 function CypherBlock({ query, label }: { query: string; label: string }) {
@@ -255,11 +307,32 @@ export default function Analitica() {
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState<string | null>(null);
 
+  // subgrafos
+  const [grafoCouriers,  setGrafoCouriers]  = useState<GrafoData>(EMPTY_GRAFO);
+  const [grafoProductos, setGrafoProductos] = useState<GrafoData>(EMPTY_GRAFO);
+  const [grafoClientes,  setGrafoClientes]  = useState<GrafoData>(EMPTY_GRAFO);
+  const [loadingGrafos,  setLoadingGrafos]  = useState(true);
+  const [tabGrafo,       setTabGrafo]       = useState<"couriers" | "productos" | "clientes">("couriers");
+
   // filas expandidas
   const [expandedCourier, setExpandedCourier] = useState<string | null>(null);
   const [expandedArancel, setExpandedArancel] = useState<string | null>(null);
   const [expandedRiesgo, setExpandedRiesgo]   = useState<string | null>(null);
   const [expandedCliente, setExpandedCliente] = useState<string | null>(null);
+
+  useEffect(() => {
+    Promise.all([
+      api.get("/grafo/red-couriers"),
+      api.get("/grafo/cadena-productos"),
+      api.get("/grafo/flujo-clientes"),
+    ])
+      .then(([gc, gp, gcl]) => {
+        setGrafoCouriers(gc.data);
+        setGrafoProductos(gp.data);
+        setGrafoClientes(gcl.data);
+      })
+      .finally(() => setLoadingGrafos(false));
+  }, []);
 
   useEffect(() => {
     Promise.all([
@@ -585,6 +658,99 @@ export default function Analitica() {
               </tbody>
             </table>
           </div>
+        )}
+      </div>
+
+      {/* ── 6. Subgrafos temáticos ── */}
+      <div className="bg-white rounded-xl border border-slate-200 p-5">
+        <SectionHeader
+          title="Visualización del grafo"
+          subtitle="Subgrafos temáticos que muestran la estructura de relaciones del sistema"
+          badge="Graph shape"
+        />
+
+        <div className="flex gap-1 mb-4 bg-slate-100 p-1 rounded-lg w-fit">
+          {(["couriers", "productos", "clientes"] as const).map((tab) => {
+            const labels: Record<typeof tab, string> = {
+              couriers:  "Red de Couriers",
+              productos: "Cadena de Productos",
+              clientes:  "Flujo de Clientes",
+            };
+            return (
+              <button
+                key={tab}
+                onClick={() => setTabGrafo(tab)}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  tabGrafo === tab
+                    ? "bg-white text-slate-800 shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                {labels[tab]}
+              </button>
+            );
+          })}
+        </div>
+
+        {loadingGrafos ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center space-y-2">
+              <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto" />
+              <p className="text-slate-400 text-sm">Cargando grafo…</p>
+            </div>
+          </div>
+        ) : (
+          <>
+            {tabGrafo === "couriers" && (
+              <>
+                <div className="mb-3 p-3 bg-sky-50 border border-sky-100 rounded-lg">
+                  <p className="text-xs font-semibold text-sky-700 mb-0.5">Red de Couriers e Incidencias</p>
+                  <p className="text-xs text-sky-600 leading-relaxed">
+                    Muestra la red de transporte del sistema: cada <span className="font-medium">Courier</span> conectado
+                    a los <span className="font-medium">Paquetes</span> que transportó, y cada paquete conectado
+                    a sus <span className="font-medium">Incidencias</span>. Permite identificar visualmente qué couriers
+                    concentran más incidencias y si hay patrones de falla agrupados por empresa transportista.
+                    Útil para decidir con qué couriers renovar contratos.
+                  </p>
+                </div>
+                <MiniGrafo graphData={grafoCouriers} height={380} />
+                <CypherBlock query={GRAFO_QUERIES.couriers} label="Red de Couriers e Incidencias" />
+              </>
+            )}
+            {tabGrafo === "productos" && (
+              <>
+                <div className="mb-3 p-3 bg-emerald-50 border border-emerald-100 rounded-lg">
+                  <p className="text-xs font-semibold text-emerald-700 mb-0.5">Cadena de Suministro de Productos</p>
+                  <p className="text-xs text-emerald-600 leading-relaxed">
+                    Visualiza la cadena completa desde el <span className="font-medium">Producto</span> hasta
+                    su origen: producto → <span className="font-medium">Oferta</span> → <span className="font-medium">Tienda exterior</span> → <span className="font-medium">País de origen</span>,
+                    más la <span className="font-medium">Categoría</span> a la que pertenece cada producto.
+                    Permite ver qué productos tienen múltiples ofertas disponibles, desde qué países
+                    se importa cada categoría y detectar dependencias de un único proveedor o país.
+                  </p>
+                </div>
+                <MiniGrafo graphData={grafoProductos} height={380} />
+                <CypherBlock query={GRAFO_QUERIES.productos} label="Cadena de Suministro" />
+              </>
+            )}
+            {tabGrafo === "clientes" && (
+              <>
+                <div className="mb-3 p-3 bg-indigo-50 border border-indigo-100 rounded-lg">
+                  <p className="text-xs font-semibold text-indigo-700 mb-0.5">Flujo de Compras y Logística</p>
+                  <p className="text-xs text-indigo-600 leading-relaxed">
+                    Traza el recorrido completo de una importación: <span className="font-medium">Cliente</span> →
+                    <span className="font-medium"> Compra</span> → <span className="font-medium">Orden/Paquete</span> →
+                    <span className="font-medium"> Estado de envío</span> y <span className="font-medium">Courier</span> asignado.
+                    Permite detectar cuellos de botella en el flujo logístico, ver qué clientes tienen paquetes
+                    en estados problemáticos y analizar cómo se distribuyen los paquetes entre couriers
+                    según cada compra.
+                  </p>
+                </div>
+                <MiniGrafo graphData={grafoClientes} height={380} />
+                <CypherBlock query={GRAFO_QUERIES.clientes} label="Flujo de Clientes" />
+              </>
+            )}
+          </>
         )}
       </div>
     </div>
