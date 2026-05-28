@@ -1,0 +1,87 @@
+CREATE CONSTRAINT cliente_id IF NOT EXISTS
+FOR (c:Cliente)
+REQUIRE c.id IS UNIQUE;
+
+CREATE CONSTRAINT compra_id IF NOT EXISTS
+FOR (c:Compra)
+REQUIRE c.id IS UNIQUE;
+
+CREATE CONSTRAINT orden_id IF NOT EXISTS
+FOR (o:Orden)
+REQUIRE o.id IS UNIQUE;
+
+CREATE CONSTRAINT producto_id IF NOT EXISTS
+FOR (p:Producto)
+REQUIRE p.id IS UNIQUE;
+
+CREATE CONSTRAINT categoria_id IF NOT EXISTS
+FOR (c:CategoriaProducto)
+REQUIRE c.id IS UNIQUE;
+
+CREATE CONSTRAINT oferta_id IF NOT EXISTS
+FOR (o:OfertaProducto)
+REQUIRE o.id IS UNIQUE;
+
+CREATE CONSTRAINT tienda_id IF NOT EXISTS
+FOR (t:TiendaExterior)
+REQUIRE t.id IS UNIQUE;
+
+CREATE CONSTRAINT pais_codigo IF NOT EXISTS
+FOR (p:PaisOrigen)
+REQUIRE p.codigo IS UNIQUE;
+
+CREATE CONSTRAINT moneda_codigo IF NOT EXISTS
+FOR (m:Moneda)
+REQUIRE m.codigo IS UNIQUE;
+
+CREATE CONSTRAINT paquete_codigo IF NOT EXISTS
+FOR (p:Paquete)
+REQUIRE p.codigo IS UNIQUE;
+
+CREATE CONSTRAINT courier_id IF NOT EXISTS
+FOR (c:Courier)
+REQUIRE c.id IS UNIQUE;
+
+CREATE CONSTRAINT incidencia_id IF NOT EXISTS
+FOR (i:Incidencia)
+REQUIRE i.id IS UNIQUE;
+
+CREATE CONSTRAINT deposito_id IF NOT EXISTS
+FOR (d:Deposito)
+REQUIRE d.id IS UNIQUE;
+
+CREATE CONSTRAINT aduana_id IF NOT EXISTS
+FOR (a:Aduana)
+REQUIRE a.id IS UNIQUE;
+
+CREATE CONSTRAINT estado_envio_id IF NOT EXISTS
+FOR (e:EstadoEnvio)
+REQUIRE e.id IS UNIQUE;
+
+CREATE CONSTRAINT declaracion_id IF NOT EXISTS
+FOR (d:DeclaracionJurada)
+REQUIRE d.id IS UNIQUE;
+
+CREATE CONSTRAINT pago_id IF NOT EXISTS
+FOR (p:Pago)
+REQUIRE p.id IS UNIQUE;
+
+CREATE CONSTRAINT impuesto_id IF NOT EXISTS
+FOR (i:Impuesto)
+REQUIRE i.id IS UNIQUE;
+
+CREATE CONSTRAINT tarifa_id IF NOT EXISTS
+FOR (t:TarifaArancelaria)
+REQUIRE t.id IS UNIQUE;
+
+CREATE CONSTRAINT direccion_id IF NOT EXISTS
+FOR (d:DireccionEntrega)
+REQUIRE d.id IS UNIQUE;
+
+CREATE CONSTRAINT metodo_envio_id IF NOT EXISTS
+FOR (m:MetodoEnvio)
+REQUIRE m.id IS UNIQUE;
+
+CREATE CONSTRAINT tarifa_pais_id IF NOT EXISTS
+FOR (t:TarifaArancelariaPais)
+REQUIRE t.id IS UNIQUE;
