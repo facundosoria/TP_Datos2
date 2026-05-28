@@ -8,8 +8,7 @@ export const driver = neo4j.driver(
   neo4j.auth.basic(
     process.env.NEO4J_USER || "neo4j",
     process.env.NEO4J_PASSWORD || "admin1234"
-  ),
-  { disableLosslessIntegers: true }
+  )
 );
 
 export const getSession = () => driver.session();
